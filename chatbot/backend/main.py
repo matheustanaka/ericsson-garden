@@ -18,13 +18,17 @@ def main():
     loader = Docx2txtLoader("./Matheus Tanaka - React Native.docx")
     data = loader.load()
 
-    print(data)
+    # print(data)
 
-    text_splitter_summary = CharacterTextSplitter.from_tiktoken_encoder(chunk_size=100, chunk_overlap=0)
+    text_splitter_summary = CharacterTextSplitter.from_tiktoken_encoder(chunk_size=250, chunk_overlap=0)
 
     docs_summary = text_splitter_summary.split_documents(data)
 
-    print(docs_summary)
+    # QA chat
+    text_splitter_qa = CharacterTextSplitter.from_tiktoken_encoder(chunk_size=250, chunk_overlap=0)
+    docs_qa = text_splitter_qa.split_documents(data)
+
+    # print(docs_summary)
 
     summary_template = "Você é um analista de Recursos Humanos de uma startup de tecnologia, seu trabalho é analisar currículos de candidatos a vaga de progamador mobile. Abaixo você encontra os dados de um currículo {text}. Analise o currículo enviado e dê sugestões sobre o que pode ser melhorado no currículo"
 
@@ -43,31 +47,30 @@ def main():
     """
     PROMPT_SUMMARY_REFINE = PromptTemplate(input_variables=["existing_answer", "text"], template=summary_refine_template,)
 
-    open_api_key = os.getenv('OPENAI_API_KEY')
+    api_key = os.getenv('OPENAI_API_KEY') 
 
-    llm_summary = ChatOpenAI(open_api_key=open_api_key, model_name='gpt-4', temperature=1.0)
+    llm_summary = ChatOpenAI(openai_api_key=api_key, model_name='gpt-4', temperature=1.0)
 
-    summarize_chain = load_summarize_chain(llm=llm_summary, chain_type="refine", verbose=True, question_prompt=PROMPT_SUMMARY, refine_prompt=PROMPT_SUMMARY_REFINE)
+    chain = load_summarize_chain(llm=llm_summary, chain_type="refine", verbose=True, question_prompt=PROMPT_SUMMARY, refine_prompt=PROMPT_SUMMARY_REFINE)
 
     summaries = []
     for doc in docs_summary:
-        summary = summarize_chain.run(summaries[doc])  # Process each doc individually
-        print(summary)
+        summary = chain.run([doc]) 
         summaries.append(summary)
     
+
     # Join all summaries into a single string
     full_summary = "\n".join(summaries)
-
 
     # Write summary to file
     with open("summary.txt", "w") as f:
         f.write(full_summary)
 
     # Create the LLM model for the question answering
-    llm_question_answer = ChatOpenAI(openai_api_key=openai_api_key, temperature=0.2, model="gpt-4")
+    llm_question_answer = ChatOpenAI(openai_api_key=api_key, temperature=0.2, model="gpt-4")
 
     # Create the vector database and RetrievalQA Chain
-    embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+    embeddings = OpenAIEmbeddings(openai_api_key=api_key)
     db = FAISS.from_documents(docs_qa, embeddings)
     qa = RetrievalQA.from_chain_type(llm=llm_question_answer, chain_type="stuff", retriever=db.as_retriever())
 
@@ -79,6 +82,7 @@ def main():
         question = input("Ask a question or enter exit to close the app: ")
         # Run the QA chain
         answer = qa.run(question)
+        print("BOT ANSWER: ", answer)
         print("---------------------------------")
         print("\n")
 
