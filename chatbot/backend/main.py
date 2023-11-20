@@ -76,9 +76,12 @@ def send_message():
         print("Realizando a pergunta")
         qa = ConversationalRetrievalChain.from_llm(llm, retriever=retriever, memory=memory)
         response = qa(ask)
+
+        # Converte o objeto SystemMessage para string
         response['chat_history'] = [str(msg) for msg in response['chat_history']]
         print("Resposta do QA:", response) 
 
+        # Converte toda a resposta em objeto para JSON
         return json.dumps(response)
 
 if __name__ == "__main__":
