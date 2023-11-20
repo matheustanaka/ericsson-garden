@@ -10,6 +10,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationSummaryMemory
 from langchain.chains import ConversationalRetrievalChain
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -75,9 +76,10 @@ def send_message():
         print("Realizando a pergunta")
         qa = ConversationalRetrievalChain.from_llm(llm, retriever=retriever, memory=memory)
         response = qa(ask)
+        response['chat_history'] = [str(msg) for msg in response['chat_history']]
         print("Resposta do QA:", response) 
 
-        return response
+        return json.dumps(response)
 
 if __name__ == "__main__":
     app.run(debug=True)
