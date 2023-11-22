@@ -1,5 +1,6 @@
 import os
 from flask import Flask, flash, request, jsonify, redirect, render_template
+from flask_cors import CORS, cross_origin
 from werkzeug.utils import secure_filename
 # Langchain imports
 from langchain.document_loaders import Docx2txtLoader
@@ -20,6 +21,7 @@ UPLOAD_FOLDER = './upload/'
 os.makedirs(os.path.dirname(UPLOAD_FOLDER), exist_ok=True)
 
 app = Flask(__name__, template_folder='template')
+cors = CORS(app)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 file_uploaded = None
@@ -29,6 +31,7 @@ def upload():
    return render_template('upload.html')
 
 @app.route("/uploader", methods = ['POST'])
+@cross_origin()
 def upload_file():
     global file_uploaded
     file = request.files['file']
@@ -43,46 +46,53 @@ def upload_file():
 
     if os.path.exists(file_save_path):
         print("pasta do arquivo", app.config['UPLOAD_FOLDER'])
-        return jsonify({ "message": "File uploaded successfully", "filename": filename})
+        return jsonify({ "message": "File uploaded successfully", "filename": filename}), 200
     else: 
-        return jsonify({ "error": "File not found"})
+        return jsonify({ "error": "File not found"}), 404
 
 
-@app.route("/chatbot", methods = ['GET', 'POST'])
+@app.route("/chatbot", methods = ['POST'])
+@cross_origin()
 def send_message():
-    if request.method == 'POST':
-        data = request.data # Ignora o tipo do conteudo
-        ask = data.decode('utf-8')
+    data = request.data # Ignora o tipo do conteudo
+    ask = data.decode('utf-8')
 
-        print("Carregando o documento")
-        loader = Docx2txtLoader(file_uploaded)
-        data = loader.load()
+    print("Carregando o documento")
+    loader = Docx2txtLoader(file_uploaded)
+    data = loader.load()
 
-        api_key = os.getenv('OPENAI_API_KEY')
+    api_key = os.getenv('OPENAI_API_KEY')
 
-        print("Separando o documento em pedaços")
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+    print("Separando o documento em pedaços")
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
 
-        all_splits = text_splitter.split_documents(data)
+    all_splits = text_splitter.split_documents(data)
+    print("Documentos quebrados", all_splits)
 
-        print("Salvando os documentos no vetor")
-        vectorstore = Chroma.from_documents(documents=all_splits, embedding=OpenAIEmbeddings())
+    print("Salvando os documentos no vetor")
+    vectorstore = Chroma.from_documents(documents=all_splits, embedding=OpenAIEmbeddings())
 
-        print("Configurando o chatbot")
-        llm = ChatOpenAI(openai_api_key=api_key, model_name='gpt-4', temperature=1.0)
-        memory = ConversationSummaryMemory(llm=llm, memory_key="chat_history", return_messages=True)
-        retriever = vectorstore.as_retriever()
+    print("Configurando o chatbot")
+    llm = ChatOpenAI(openai_api_key=api_key, model_name='gpt-3.5-turbo-16k', temperature=0.7)
+    memory = ConversationSummaryMemory(llm=llm, memory_key="chat_history", return_messages=True)
+    retriever = vectorstore.as_retriever()
 
-        print("Realizando a pergunta")
-        qa = ConversationalRetrievalChain.from_llm(llm, retriever=retriever, memory=memory)
-        response = qa(ask)
+    print("Realizando a pergunta")
+    qa = ConversationalRetrievalChain.from_llm(llm, retriever=retriever, memory=memory)
+    response = qa(ask)
 
-        # Converte o objeto SystemMessage para string
-        response['chat_history'] = [str(msg) for msg in response['chat_history']]
-        print("Resposta do QA:", response) 
+    # Converte o objeto SystemMessage para string
+    # response['chat_history'] = [str(msg) for msg in response['chat_history']]
+    # print("Resposta do QA:", response) 
 
-        # Converte toda a resposta em objeto para JSON
-        return json.dumps(response)
+    # Converte toda a resposta em objeto para JSON
+    # json_response = json.dumps(response)
+
+    answer = response.get('answer', 'No answer found')
+
+    print("Resposta do chatgpt:", answer)
+ 
+    return jsonify({ "answer": answer }), 200 
 
 if __name__ == "__main__":
     app.run(debug=True)

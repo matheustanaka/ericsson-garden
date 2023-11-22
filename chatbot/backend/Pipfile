@@ -7,6 +7,9 @@ name = "pypi"
 langchain = "*"
 openai = "*"
 faiss-cpu = "*"
+flask = "*"
+chromadb = "*"
+flask-cors = "*"
 
 [dev-packages]
 
