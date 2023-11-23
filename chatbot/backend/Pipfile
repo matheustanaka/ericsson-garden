@@ -10,6 +10,13 @@ faiss-cpu = "*"
 flask = "*"
 chromadb = "*"
 flask-cors = "*"
+pypdf = "*"
+unstructured = "*"
+onnxruntime = "*"
+rapidocr-onnxruntime = "*"
+networkx = "*"
+pandas = "*"
+openpyxl = "*"
 
 [dev-packages]
 
