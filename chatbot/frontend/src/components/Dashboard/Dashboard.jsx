@@ -31,18 +31,14 @@ export default function Dashboard () {
 
   return (
     <div className='dashboard'>
-      <h1>Summary Word (.docx)</h1>
+      <h1>Chat Files</h1>
       <div className="analyze-content">
-        {questions.length > 0 ? (
-          questions.map((question, index) => (
+        {questions.map((question, index) => (
             <div key={index}>
               <p><strong>Question:</strong> {question}</p>
               <p><strong>Answer:</strong> {summaries[index]}</p>
             </div>
-          ))
-        ) : (
-          <p>No content to display</p>
-        )}
+          ))}
       </div>
       <form className='form-data' onSubmit={fetchSummary}>
         <input 
