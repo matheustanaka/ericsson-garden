@@ -4,8 +4,9 @@ import './style.css';
 
 export default function Dashboard () {
   const [inputText, setInputText] = useState("");
-  const [questions, setQuestions] = useState([]); // Estado para as perguntas
-  const [summaries, setSummaries] = useState([]); // Estado para as respostas
+  const [questions, setQuestions] = useState([]);   
+  const [summaries, setSummaries] = useState([]); 
+
 
   const fetchSummary = async (event) => {
     event.preventDefault();
@@ -14,8 +15,8 @@ export default function Dashboard () {
       console.log("Data received from API:", data);
 
       if (data.answer) {
-        setQuestions(prevQuestions => [...prevQuestions, inputText]); // Adiciona a pergunta ao array
-        setSummaries(prevSummaries => [...prevSummaries, data.answer]); // Adiciona a resposta ao array
+        setQuestions(prevQuestions => [...prevQuestions, inputText]); 
+        setSummaries(prevSummaries => [...prevSummaries, data.answer]); 
       } else {
         console.log("No answer in the response");
       }
