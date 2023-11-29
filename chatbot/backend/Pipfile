@@ -17,6 +17,7 @@ rapidocr-onnxruntime = "*"
 networkx = "*"
 pandas = "*"
 openpyxl = "*"
+langchain-experimental = "*"
 
 [dev-packages]
 
