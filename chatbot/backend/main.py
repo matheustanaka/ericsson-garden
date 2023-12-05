@@ -28,12 +28,15 @@ cors = CORS(app)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'csv' }
 
+# Registro para salvar o arquivo enviado pelo upload
 file_uploaded = None
 
+# Funcão para determinar o tipo de extensões permitidas
 def allowed_file(filename): 
     return '.' in filename and \
             filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Rota para fazer o upload de arquivos
 @app.route('/uploader', methods = ['POST'])
 @cross_origin()
 def upload_file():
@@ -41,15 +44,17 @@ def upload_file():
 
     file = request.files['file']
 
+    # Verifica se o arquivo está dentro das extensões permitidas
     if file and allowed_file(file.filename):
-        print('file request', file)
+        print('Requisicão do arquivo', file)
         filename = secure_filename(file.filename)
         print('nome do arquivo', filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        # Juntando o caminho do diretório com o nome do arquivo
-        file_save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file_uploaded = file_save_path
+        
+        # Juntando o caminho do diretório com o nome do arquivo 
+        file_uploaded = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
+        # Verifica se o caminho com o arquivo existe
         if os.path.exists(file_uploaded):
             print('pasta do arquivo: ', app.config['UPLOAD_FOLDER'])
             return jsonify({ 'message': 'File uploaded successfully', 'filename': filename}), 200
@@ -59,6 +64,44 @@ def upload_file():
         return jsonify({ 'error': 'File not allowed'}), 400
 
 
+# Rota para mandar as perguntas para o bot
+@app.route('/chatbot', methods = ['POST'])
+@cross_origin()
+def send_message():
+    data_question = request.data
+    ask = data_question.decode('utf-8')
+
+    return check_file_extension(filename=file_uploaded, ask=ask)    
+
+# Verifica a extensão do arquivo para chamar as funcões de carregamento de arquivos 
+def check_file_extension(filename, ask):
+    api_key = os.getenv('OPENAI_API_KEY')
+    extension = filename.rsplit('.', 1)[1].lower()
+
+    match extension:
+        case 'csv':
+            print('Carregando documento CSV...')
+
+            return process_csv(filename, ask, api_key)
+        case 'docx':
+            print('Carregando documento DOCX...')
+
+            loader = Docx2txtLoader(filename)
+            data = loader.load()
+            return process_document(data, ask, api_key) 
+
+        case 'pdf':
+            print('Carregando documento PDF...')
+
+            loader = PyPDFLoader(filename, extract_images=False)
+            data = loader.load()
+            return process_document(data, ask, api_key) 
+
+        case _:
+            raise ValueError(f'Tipo de arquivo não suportado: {extension}')
+
+
+# Funcão para processar os documentos PDF e Word (docx)
 def process_document(data, ask, api_key):
     print('Separando o documento em pedaços...')
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=150)
@@ -87,6 +130,7 @@ def process_document(data, ask, api_key):
     return response_json 
 
 
+# Funcão para processar o arquivo csv (excel)
 def process_csv(filename, ask, api_key): 
 
     print('Carregando documento csv...')
@@ -108,42 +152,6 @@ def process_csv(filename, ask, api_key):
     return response_json 
 
 
-def check_file_extension(filename, ask):
-    api_key = os.getenv('OPENAI_API_KEY')
-    extension = filename.rsplit('.', 1)[1].lower()
-
-    match extension:
-        case 'csv':
-            print('Carregando documento CSV...')
-
-            return process_csv(filename, ask, api_key)
-        case 'docx' | 'pdf':
-            if extension == 'docx':
-                print('Carregando documento DOCX...')
-
-                loader = Docx2txtLoader(filename)
-                data = loader.load()
-
-            else:
-                print('Carregando documento PDF...')
-
-                loader = PyPDFLoader(filename, extract_images=False)
-                data = loader.load()
-
-            return process_document(data, ask, api_key) 
-
-        case _:
-            raise ValueError(f'Tipo de arquivo não suportado: {extension}')
-
-
-
-@app.route('/chatbot', methods = ['POST'])
-@cross_origin()
-def send_message():
-    data_question = request.data
-    ask = data_question.decode('utf-8')
-
-    return check_file_extension(filename=file_uploaded, ask=ask)    
 
 if __name__ == '__main__':
     app.run(debug=True)
